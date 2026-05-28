@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interpolation Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Noto+Sans+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="bg-image"></div>
+  <div class="bg-overlay"></div>
+  <canvas id="particles"></canvas>
+
+  <main class="app">
+    <header class="hero">
+      <p class="badge">Polynomial Interpolation • Lagrange</p>
+      <h1>Interpolation</h1>
+      <p class="subtitle">
+        自訂數列、指定插入位置與數值，立刻看到「能穿過所有點」的多項式。
+      </p>
+    </header>
+
+    <section class="panel controls">
+      <h2>輸入設定</h2>
+      <div class="grid">
+        <label>
+          原始數列（逗號分隔）
+          <input id="sequenceInput" type="text" value="1,3,5" />
+        </label>
+        <label>
+          插入位置（從 1 開始）
+          <input id="insertPos" type="number" min="1" value="4" />
+        </label>
+        <label>
+          插入值 X
+          <input id="insertValue" type="number" step="any" value="7" />
+        </label>
+      </div>
+      <div class="actions">
+        <button id="applyBtn">生成公式</button>
+        <button id="randomBtn" class="ghost">隨機 X</button>
+      </div>
+      <p class="tip">提示：例如輸入 1,3,5，位置填 4，X 可任意輸入 7 / 100 / -50。</p>
+    </section>
+
+    <section class="panel result">
+      <h2>插值結果</h2>
+      <div id="pointsText" class="card"></div>
+      <div id="formulaText" class="card formula"></div>
+      <div id="polyText" class="card"></div>
+      <div id="valueText" class="card"></div>
+    </section>
+
+    <section class="panel chart-panel">
+      <h2>曲線預覽</h2>
+      <div class="chart-layout">
+        <canvas id="plot" width="960" height="420"></canvas>
+        <img class="side-image" src="./unnamed-removebg-preview.png" alt="Interpolation 視覺素材" />
+      </div>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
