@@ -41,9 +41,12 @@
       </div>
       <div class="actions">
         <button id="applyBtn">生成公式</button>
-        <button id="randomBtn" class="ghost">隨機 X</button>
+        <button id="randomBtn" class="ghost" type="button">隨機 X</button>
+        <button id="shareBtn" class="ghost" type="button">複製參數連結</button>
       </div>
       <p class="tip">提示：例如輸入 1,3,5，位置填 4，X 可任意輸入 7 / 100 / -50。</p>
+      <p class="tip">也可以在網址加上 <code>?sequence=1,3,5&amp;position=4&amp;value=7</code>，開啟後自動帶入並計算。</p>
+      <p id="shareStatus" class="tip" role="status" aria-live="polite"></p>
     </section>
 
     <section class="panel result">
