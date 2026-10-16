@@ -1,6 +1,4 @@
 const sequenceInput = document.getElementById("sequenceInput");
-const insertPosInput = document.getElementById("insertPos");
-const insertValueInput = document.getElementById("insertValue");
 const applyBtn = document.getElementById("applyBtn");
 const randomBtn = document.getElementById("randomBtn");
 const shareBtn = document.getElementById("shareBtn");
@@ -16,26 +14,37 @@ const plotCtx = plotCanvas.getContext("2d");
 const particlesCanvas = document.getElementById("particles");
 const particlesCtx = particlesCanvas.getContext("2d");
 
-// Read parameter values from the URL before calculating the initial result.
-const queryFields = [
-  ["sequence", sequenceInput],
-  ["position", insertPosInput],
-  ["value", insertValueInput],
-];
-
+// The full sequence lives in a single query parameter: ?sequence=1,3,5,7
 function applyURLParameters() {
   const params = new URLSearchParams(window.location.search);
-  queryFields.forEach(([name, element]) => {
-    if (params.has(name)) element.value = params.get(name);
-  });
+  if (!params.has("sequence")) return;
+  const text = params.get("sequence");
+  const position = params.get("position");
+  const addedValue = params.get("value");
+
+  // Keep older shared links working, then convert them to the simpler format.
+  if (position !== null && addedValue !== null) {
+    const values = parseSequence(text);
+    const pos = Number(position);
+    const val = Number(addedValue);
+    if (values && Number.isInteger(pos) && pos >= 1 &&
+        pos <= values.length + 1 && addedValue.trim() !== "" && Number.isFinite(val)) {
+      values.splice(pos - 1, 0, val);
+      sequenceInput.value = values.join(",");
+      syncURLParameters();
+      return;
+    }
+  }
+
+  sequenceInput.value = text;
+  if (position !== null || addedValue !== null) syncURLParameters();
 }
 
 function syncURLParameters() {
   const url = new URL(window.location.href);
-  queryFields.forEach(([name, element]) => {
-    url.searchParams.set(name, element.value.trim());
-  });
-  // Replacing instead of pushing avoids filling browser history on each keystroke.
+  const sequence = sequenceInput.value.trim().replace(/，/g, ",").replace(/\\s*,\\s*/g, ",");
+  // Keep comma characters readable rather than encoding them as %2C.
+  url.search = `?sequence=${encodeURIComponent(sequence).replace(/%2C/gi, ",")}`;
   window.history.replaceState(null, "", url.toString());
 }
 
@@ -45,20 +54,12 @@ function parseSequence(text) {
   return values.map(Number);
 }
 
-function buildPoints(values, insertPos, insertValue) {
-  const points = [];
-  const maxIndex = values.length + 1;
-  const pos = Math.max(1, Math.min(maxIndex, insertPos));
-  let vIndex = 0;
-  for (let x = 1; x <= maxIndex; x += 1) {
-    if (x === pos) {
-      points.push({ x, y: insertValue, highlight: true });
-    } else {
-      points.push({ x, y: values[vIndex], highlight: false });
-      vIndex += 1;
-    }
-  }
-  return points;
+function buildPoints(values) {
+  return values.map((y, index) => ({
+    x: index + 1,
+    y,
+    highlight: index === values.length - 1,
+  }));
 }
 
 function polyAdd(a, b) {
@@ -220,45 +221,32 @@ function update() {
     plotCtx.clearRect(0, 0, plotCanvas.width, plotCanvas.height);
     return;
   }
-  const insertPos = Number(insertPosInput.value);
-  const insertValue = Number(insertValueInput.value);
-  if (!Number.isInteger(insertPos) || insertPos < 1 || insertPos > seq.length + 1 ||
-      insertValueInput.value.trim() === "" || !Number.isFinite(insertValue)) {
-    pointsText.textContent = `插入位置必須是 1～${seq.length + 1} 的整數，插入值必須是有效數字。`;
-    formulaText.textContent = "";
-    polyText.textContent = "";
-    valueText.textContent = "";
-    plotCtx.clearRect(0, 0, plotCanvas.width, plotCanvas.height);
-    return;
-  }
-
-  const points = buildPoints(seq, Math.round(insertPos), insertValue);
+  const points = buildPoints(seq);
   const coeffs = lagrangeCoefficients(points);
-  const insertedX = points.find((p) => p.highlight).x;
-  const yAtInsert = evalPoly(coeffs, insertedX);
+  const lastPoint = points[points.length - 1];
+  const yAtLast = evalPoly(coeffs, lastPoint.x);
 
   pointsText.textContent = `點集：${points.map((p) => `(${p.x}, ${fmt(p.y)})`).join(" , ")}`;
   formulaText.textContent = lagrangeFormText(points);
   polyText.textContent = polynomialToText(coeffs);
-  valueText.textContent = `驗算：f(${insertedX}) = ${fmt(yAtInsert)}（目標值 ${fmt(insertValue)}）`;
+  valueText.textContent = `驗算：f(${lastPoint.x}) = ${fmt(yAtLast)}（數列最後一項為 ${fmt(lastPoint.y)}）`;
   drawPlot(points, coeffs);
 }
 
 applyBtn.addEventListener("click", update);
 randomBtn.addEventListener("click", () => {
   const r = Math.floor(Math.random() * 301) - 150;
-  insertValueInput.value = String(r);
+  const current = sequenceInput.value.trim();
+  sequenceInput.value = current ? `${current},${r}` : String(r);
   update();
   syncURLParameters();
   shareStatus.textContent = "";
 });
 
-[sequenceInput, insertPosInput, insertValueInput].forEach((el) => {
-  el.addEventListener("input", () => {
-    update();
-    syncURLParameters();
-    shareStatus.textContent = "";
-  });
+sequenceInput.addEventListener("input", () => {
+  update();
+  syncURLParameters();
+  shareStatus.textContent = "";
 });
 
 shareBtn.addEventListener("click", async () => {
