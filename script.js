@@ -3,6 +3,8 @@ const insertPosInput = document.getElementById("insertPos");
 const insertValueInput = document.getElementById("insertValue");
 const applyBtn = document.getElementById("applyBtn");
 const randomBtn = document.getElementById("randomBtn");
+const shareBtn = document.getElementById("shareBtn");
+const shareStatus = document.getElementById("shareStatus");
 
 const pointsText = document.getElementById("pointsText");
 const formulaText = document.getElementById("formulaText");
@@ -14,11 +16,33 @@ const plotCtx = plotCanvas.getContext("2d");
 const particlesCanvas = document.getElementById("particles");
 const particlesCtx = particlesCanvas.getContext("2d");
 
+// Read parameter values from the URL before calculating the initial result.
+const queryFields = [
+  ["sequence", sequenceInput],
+  ["position", insertPosInput],
+  ["value", insertValueInput],
+];
+
+function applyURLParameters() {
+  const params = new URLSearchParams(window.location.search);
+  queryFields.forEach(([name, element]) => {
+    if (params.has(name)) element.value = params.get(name);
+  });
+}
+
+function syncURLParameters() {
+  const url = new URL(window.location.href);
+  queryFields.forEach(([name, element]) => {
+    url.searchParams.set(name, element.value.trim());
+  });
+  // Replacing instead of pushing avoids filling browser history on each keystroke.
+  window.history.replaceState(null, "", url.toString());
+}
+
 function parseSequence(text) {
-  return text
-    .split(",")
-    .map((s) => Number(s.trim()))
-    .filter((n) => Number.isFinite(n));
+  const values = text.split(/[,，]/).map((s) => s.trim());
+  if (values.some((v) => v === "" || !Number.isFinite(Number(v)))) return null;
+  return values.map(Number);
 }
 
 function buildPoints(values, insertPos, insertValue) {
@@ -188,8 +212,8 @@ function drawPlot(points, coeffs) {
 
 function update() {
   const seq = parseSequence(sequenceInput.value);
-  if (seq.length < 2) {
-    pointsText.textContent = "請至少輸入兩個有效數字（例如：1,3,5）";
+  if (!seq || seq.length < 2) {
+    pointsText.textContent = "請至少輸入兩個有效數字，並使用逗號分隔（例如：1,3,5）。";
     formulaText.textContent = "";
     polyText.textContent = "";
     valueText.textContent = "";
@@ -198,19 +222,25 @@ function update() {
   }
   const insertPos = Number(insertPosInput.value);
   const insertValue = Number(insertValueInput.value);
-  if (!Number.isFinite(insertPos) || !Number.isFinite(insertValue)) {
+  if (!Number.isInteger(insertPos) || insertPos < 1 || insertPos > seq.length + 1 ||
+      insertValueInput.value.trim() === "" || !Number.isFinite(insertValue)) {
+    pointsText.textContent = `插入位置必須是 1～${seq.length + 1} 的整數，插入值必須是有效數字。`;
+    formulaText.textContent = "";
+    polyText.textContent = "";
+    valueText.textContent = "";
+    plotCtx.clearRect(0, 0, plotCanvas.width, plotCanvas.height);
     return;
   }
 
   const points = buildPoints(seq, Math.round(insertPos), insertValue);
   const coeffs = lagrangeCoefficients(points);
-  const maxX = Math.max(...points.map((p) => p.x));
-  const yAtMax = evalPoly(coeffs, maxX);
+  const insertedX = points.find((p) => p.highlight).x;
+  const yAtInsert = evalPoly(coeffs, insertedX);
 
   pointsText.textContent = `點集：${points.map((p) => `(${p.x}, ${fmt(p.y)})`).join(" , ")}`;
   formulaText.textContent = lagrangeFormText(points);
   polyText.textContent = polynomialToText(coeffs);
-  valueText.textContent = `驗算：f(${maxX}) = ${fmt(yAtMax)}（目標值 ${fmt(insertValue)}）`;
+  valueText.textContent = `驗算：f(${insertedX}) = ${fmt(yAtInsert)}（目標值 ${fmt(insertValue)}）`;
   drawPlot(points, coeffs);
 }
 
@@ -219,10 +249,26 @@ randomBtn.addEventListener("click", () => {
   const r = Math.floor(Math.random() * 301) - 150;
   insertValueInput.value = String(r);
   update();
+  syncURLParameters();
+  shareStatus.textContent = "";
 });
 
 [sequenceInput, insertPosInput, insertValueInput].forEach((el) => {
-  el.addEventListener("input", update);
+  el.addEventListener("input", () => {
+    update();
+    syncURLParameters();
+    shareStatus.textContent = "";
+  });
+});
+
+shareBtn.addEventListener("click", async () => {
+  syncURLParameters();
+  try {
+    await navigator.clipboard.writeText(window.location.href);
+    shareStatus.textContent = "已複製包含目前參數的連結！";
+  } catch (error) {
+    shareStatus.textContent = "無法自動複製，請直接複製瀏覽器網址列的連結。";
+  }
 });
 
 function initParticles() {
@@ -259,5 +305,6 @@ function initParticles() {
   frame();
 }
 
+applyURLParameters();
 initParticles();
 update();
